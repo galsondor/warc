@@ -20,7 +20,7 @@ class TestCaseInsensitiveDict:
 class TestFilePart:
     def setup_method(self, m):
         # 5 chars in each line
-        self.text = "\n".join(["aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff"])
+        self.text = LF.join(["aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff"])
         
     def test_read(self):
         part = FilePart(StringIO(self.text), 0)
@@ -41,7 +41,7 @@ class TestFilePart:
         assert part.read(3) == "aaa"
         assert part.read(3) == "a\nb"
         assert part.read(3) == "bbb"
-        assert part.read(3) == "\n"
+        assert part.read(3) == LF
         assert part.read(3) == ""
         
     def test_readline(self):

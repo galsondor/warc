@@ -1,5 +1,5 @@
 """
-Provides support for ARC v1 files. 
+Provides support for ARC v1 files.
 
 :copyright: (c) 2012 Internet Archive
 """
@@ -11,7 +11,7 @@ import re
 import StringIO
 import warnings
 
-from .utils import CaseInsensitiveDict
+from .utils import CaseInsensitiveDict, CRLF, LF
 
 ARC1_HEADER_RE = re.compile('(?P<url>\S*)\s(?P<ip_address>\S*)\s(?P<date>\S*)\s(?P<content_type>\S*)\s(?P<length>\S*)')
 ARC2_HEADER_RE = re.compile('(?P<url>\S*)\s(?P<ip_address>\S*)\s(?P<date>\S*)\s(?P<content_type>\S*)\s(?P<result_code>\S*)\s(?P<checksum>\S*)\s(?P<location>\S*)\s(?P<offset>\S*)\s(?P<filename>\S*)\s(?P<length>\S*)')
@@ -27,21 +27,21 @@ class ARCHeader(CaseInsensitiveDict):
         * content_type
         * length (length of the n/w doc in bytes)
 
-    V2 header fields are 
+    V2 header fields are
 
         * url
         * ip_address
         * date (date of archival)
-        * content_type 
+        * content_type
         * result_code (response code)
-        * checksum 
+        * checksum
         * location
         * offset (offset from beginning of file to recrod)
         * filename (name of arc file)
         * length (length of the n/w doc in bytes)
 
     """
-    def __init__(self, url = "",  ip_address = "",  date = "",  content_type = "",  
+    def __init__(self, url = "",  ip_address = "",  date = "",  content_type = "",
                  result_code = "",  checksum = "",  location = "",  offset = "",  filename = "",  length = "", version = 2):
 
         if isinstance(date, datetime.datetime):
@@ -54,8 +54,8 @@ class ARCHeader(CaseInsensitiveDict):
 
         self.version = version
 
-        CaseInsensitiveDict.__init__(self, 
-                                     url = url, 
+        CaseInsensitiveDict.__init__(self,
+                                     url = url,
                                      ip_address = ip_address,
                                      date = date,
                                      content_type = content_type,
@@ -65,10 +65,10 @@ class ARCHeader(CaseInsensitiveDict):
                                      offset = offset,
                                      filename = filename,
                                      length = length)
-    
+
     def write_to(self, f, version = None):
         """
-        Writes out the arc header to the file like object `f`. 
+        Writes out the arc header to the file like object `f`.
 
         If the version field is 1, it writes out an arc v1 header,
         otherwise (and this is default), it outputs a v2 header.
@@ -92,44 +92,44 @@ class ARCHeader(CaseInsensitiveDict):
                               filename     = self['filename'],
                               length       = self['length'])
         f.write(header)
-            
+
 
     @property
     def url(self):
         return self["url"]
-    
+
     @property
     def ip_address(self):
         return self["ip_address"]
-    
+
     @property
     def date(self):
         return datetime.datetime.strptime(self['date'], "%Y%m%d%H%M%S")
-    
+
     @property
     def content_type(self):
         return self["content_type"]
-    
+
     @property
     def result_code(self):
         return self["result_code"]
-    
+
     @property
     def checksum (self):
         return self["checksum"]
-    
+
     @property
     def location(self):
         return self["location"]
-    
+
     @property
     def offset(self):
         return int(self["offset"])
-    
+
     @property
     def filename(self):
         return self["filename"]
-    
+
     @property
     def length(self):
         return int(self["length"])
@@ -138,7 +138,7 @@ class ARCHeader(CaseInsensitiveDict):
         f = StringIO.StringIO()
         self.write_to(f)
         return f.getvalue()
-        
+
     def __repr__(self):
         f = {}
         for i in "url ip_address date content_typeresult_code checksum location offset filename length".split():
@@ -148,7 +148,7 @@ class ARCHeader(CaseInsensitiveDict):
         s = ", ".join(s)
         return "<ARCHeader(%s)>"%s
 
-        
+
 class ARCRecord(object):
     def __init__(self, header = None, payload = None, headers = {}, version = None):
         if not (header or headers):
@@ -156,16 +156,16 @@ class ARCRecord(object):
         self.header = header or ARCHeader(version = version, **headers)
         self.payload = payload
         self.version = version
-    
+
     @classmethod
     def from_string(cls, string, version):
         """
-        Constructs an ARC record from a string and returns it.  
+        Constructs an ARC record from a string and returns it.
 
         TODO: It might be best to merge this with the _read_arc_record
         function rather than reimplement the functionality here.
         """
-        header, payload = string.split("\n",1)
+        header, payload = string.split(LF,1)
         if payload[0] == '\n': # There's an extra
             payload = payload[1:]
         if int(version) == 1:
@@ -181,7 +181,7 @@ class ARCRecord(object):
     def write_to(self, f, version = None):
         version = version or self.version or 2
         self.header.write_to(f, version)
-        f.write("\n") # This separates the header and the body
+        f.write(LF) # This separates the header and the body
         if isinstance(self.payload, str): #Usually used for small payloads
             f.write(self.payload)
         elif hasattr(self.payload, "read"): #Used for large payloads where we give a file like object
@@ -190,7 +190,7 @@ class ARCRecord(object):
             while d:
                 f.write(d)
                 d = self.payload.read(chunk_size)
-        f.write("\n")
+        f.write(LF)
 
     def __getitem__(self, name):
         return self.header[name]
@@ -198,20 +198,20 @@ class ARCRecord(object):
     def __setitem__(self, name, value):
         self.header[name] = value
 
-    
+
     def __str__(self):
         f = StringIO.StringIO()
         self.write_to(f)
         return f.getvalue()
-        
-    
+
+
 class ARCFile(object):
     def __init__(self, filename=None, mode=None, fileobj=None, version = None, file_headers = {}):
         """
         Initialises a file like object that can be used to read or
         write Arc files. Works for both version 1 or version 2.
 
-        This can be called similar to the builtin `file` constructor. 
+        This can be called similar to the builtin `file` constructor.
 
         It can also just be given a fileobj which is a file like
         object that it will use directly for its work.
@@ -223,7 +223,7 @@ class ARCFile(object):
 
            * ip_address - IP address of the machine doing the Archiving
            * date - Date of archival
-           * org - Organisation that's doing the Archiving. 
+           * org - Organisation that's doing the Archiving.
 
         The version parameter tries to work intuitively as follows
 
@@ -247,7 +247,7 @@ class ARCFile(object):
                   * When we try to read a record, it will read out one
                     record and try to guess the version from it (for
                     the first read).
-        
+
         """
         if fileobj is None:
             fileobj = __builtin__.open(filename, mode or "rb")
@@ -267,7 +267,7 @@ class ARCFile(object):
         self.header_written = False
         self.header_read = False
 
-        
+
     def _write_header(self):
         "Writes out an ARC header"
         if "org" not in self.file_headers:
@@ -286,21 +286,21 @@ class ARCFile(object):
             payload = "2 0 %(org)s\nURL IP-address Archive-date Content-type Result-code Checksum Location Offset Filename Archive-length"
         else:
             raise IOError("Can't write an ARC file with version '\"%s\"'"%self.version)
-        
+
         fname = os.path.basename(self.filename)
         header = ARCHeader(url = "filedesc://%s"%fname,
-                           ip_address = self.file_headers['ip_address'], 
+                           ip_address = self.file_headers['ip_address'],
                            date = self.file_headers['date'],
-                           content_type = "text/plain", 
+                           content_type = "text/plain",
                            length = len(payload),
                            result_code = "200",
-                           checksum = "-", 
+                           checksum = "-",
                            location = "-",
                            offset = str(self.fileobj.tell()),
                            filename = fname)
         arc_file_header_record = ARCRecord(header, payload%self.file_headers)
         arc_file_header_record.write_to(self.fileobj, self.version)
-        self.fileobj.write("\n") # record separator
+        self.fileobj.write(LF) # record separator
 
     def write(self, arc_record):
         "Writes out the given arc record to the file"
@@ -310,7 +310,7 @@ class ARCFile(object):
             self.header_written = True
             self._write_header()
         arc_record.write_to(self.fileobj, self.version)
-        self.fileobj.write("\n") # Record separator
+        self.fileobj.write(LF) # Record separator
 
     def _read_file_header(self):
         """Reads out the file header for the arc file. If version was
@@ -322,11 +322,11 @@ class ARCFile(object):
         self.fileobj.readline() # Lose the separator newline
         self.header_read = True
         # print "--------------------------------------------------"
-        # print header,"\n", payload1, "\n", payload2,"\n"
+        # print header,LF, payload1, LF, payload2,LF
         # print "--------------------------------------------------"
         if self.version and int(self.version) != version:
             raise IOError("Version mismatch. Requested version was '%s' but version in file was '%s'"%(self.version, version))
-        
+
         if version == '1':
             url, ip_address, date, content_type, length = header.split()
             self.file_headers = {"ip_address" : ip_address,
@@ -372,13 +372,13 @@ class ARCFile(object):
         self.fileobj.readline() # Munge the separator newline.
 
         return ARCRecord(header = arc_header, payload = payload)
-        
+
     def read(self):
         "Reads out an arc record from the file"
         if not self.header_read:
             self._read_file_header()
         return self._read_arc_record()
-        
+
     # For compatability with WARCFile
     read_record = read
     write_record = write
@@ -388,16 +388,8 @@ class ARCFile(object):
         while record:
             yield record
             record = self.read()
-    
+
     def close(self):
         self.fileobj.close()
-        
-        
-        
-        
-        
-        
-    
-    
-    
-    
+
+#ends
