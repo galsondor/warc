@@ -247,9 +247,6 @@ class WARCFile:
         if fileobj is None:
             fileobj = __builtin__.open(filename, mode or "rb")
             mode = fileobj.mode
-        # initiaize compress based on filename, if not already specified
-        if compress is None and filename and filename.endswith(".gz"):
-            compress = True
 
         if compress:
             fileobj = gzip2.GzipFile(fileobj=fileobj, mode=mode)
